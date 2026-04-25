@@ -76,9 +76,9 @@ const questionSchema = new mongoose.Schema({
         type: String,
         required: false,
     },
-    diagram_url: {
-        type: String,
-        default: null,
+    diagram_urls: {
+        type: [String],
+        default: [],
     },
 
     // 5. System Flags (Phase 3)

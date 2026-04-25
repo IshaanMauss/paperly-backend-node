@@ -48,10 +48,14 @@ const preflightValidateQuestionEnums = (question, index) => {
     return null;
 };
 
-const persistDiagramAndGetUrl = async (diagramImageBase64, index) => {
-    if (isBlank(diagramImageBase64)) return null;
+const persistDiagramUrls = async (diagramImagesBase64, index) => {
+    if (!Array.isArray(diagramImagesBase64) || diagramImagesBase64.length === 0) return [];
     try {
-        return await uploadBase64Image(diagramImageBase64);
+        return await Promise.all(
+            diagramImagesBase64
+                .filter((imageBase64) => !isBlank(imageBase64))
+                .map((imageBase64) => uploadBase64Image(imageBase64))
+        );
     } catch (error) {
         throw new Error(`Diagram upload failed for question ${index + 1}: ${error.message}`);
     }
@@ -151,10 +155,13 @@ const saveVerifiedBatch = async (req, res) => {
         }
 
         const questionsToSave = await Promise.all(verifiedQuestionsArray.map(async (q, index) => {
-            // Remove raw base64 from payload and upload to Cloudinary instead.
-            const { diagram_image_base64, ...restOfQuestionData } = q; 
+            // Remove raw base64 payload and upload all diagram images to Cloudinary.
+            const { diagram_images_base64, diagram_image_base64, ...restOfQuestionData } = q; 
             
-            const diagramUrl = await persistDiagramAndGetUrl(diagram_image_base64, index);
+            const normalizedDiagramImages = Array.isArray(diagram_images_base64)
+                ? diagram_images_base64
+                : (diagram_image_base64 ? [diagram_image_base64] : []);
+            const diagramUrls = await persistDiagramUrls(normalizedDiagramImages, index);
             
             return {
                 ...restOfQuestionData, // Base64 is removed from here!
@@ -166,8 +173,8 @@ const saveVerifiedBatch = async (req, res) => {
                 paper_number: normalizeOptionalNumber(q.paper_number || q.paper),
                 year: normalizeOptionalNumber(q.year),
                 question_latex: q.question_latex || q.latex || q.question || '',
-                official_marking_scheme_latex: q.official_marking_scheme_latex || q.marking_scheme_latex || q.latex || '',
-                diagram_url: diagramUrl,
+                official_marking_scheme_latex: q.official_marking_scheme_latex || q.marking_scheme_latex || '',
+                diagram_urls: diagramUrls,
                 is_template: true,  
                 needs_review: false,
             };

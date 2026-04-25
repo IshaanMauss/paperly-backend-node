@@ -1,11 +1,8 @@
+require('dotenv').config({ path: require('path').resolve(__dirname, '.env') });
 // File: server.js
 const express = require('express');
-const dotenv = require('dotenv');
 const cors = require('cors');
 const connectDB = require('./config/db');
-
-// Load env vars
-dotenv.config();
 
 // Connect to database
 connectDB();
