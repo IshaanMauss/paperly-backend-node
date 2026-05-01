@@ -1,22 +1,34 @@
 {
   "name": "paperly-backend-node",
   "version": "1.0.0",
+  "description": "Paperly Backend Node.js Server",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "start:prod": "NODE_ENV=production pm2 start server.js -i max",
+    "dev": "cross-env PORT=5000 node --watch server.js",
+    "cluster": "cross-env NODE_ENV=production node server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "dependencies": {
     "cloudinary": "^2.9.0",
+    "compression": "^1.8.1",
+    "connect-timeout": "^1.9.1",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^7.5.1",
     "form-data": "^4.0.5",
     "mongodb": "^7.2.0",
-    "mongoose": "^9.4.1"
+    "mongoose": "^9.4.1",
+    "node-cache": "^5.1.2",
+    "pdf2pic": "^3.2.0",
+    "pm2": "^5.3.0",
+    "sharp": "^0.32.5"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3"
+  },
+  "engines": {
+    "node": ">=14.0.0"
   }
 }

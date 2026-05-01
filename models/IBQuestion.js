@@ -1,27 +1,18 @@
-// File: models/Question.js
+// File: models/IBQuestion.js
 const mongoose = require('mongoose');
+const methodStepSchema = require('./subschemas/MethodStepSchema');
+const { sanitizeDiagramUrls, isValidUrl } = require('../utils/diagramUrlSanitizer');
 
 // ---------------------------------------------------------------------------
-// Sub-schema: a single mark-point in a Marking Scheme entry
+// IB Question schema
 // ---------------------------------------------------------------------------
-const methodStepSchema = new mongoose.Schema(
-    {
-        type:        { type: String, default: '' }, // M1, A1, B1, ft, oe, dep, allow, accept …
-        description: { type: String, default: '' }, // What earns this mark (LaTeX if math)
-    },
-    { _id: false }
-);
-
-// ---------------------------------------------------------------------------
-// Main Question / MS-Entry schema
-// ---------------------------------------------------------------------------
-const questionSchema = new mongoose.Schema(
+const ibQuestionSchema = new mongoose.Schema(
     {
         // ── Document classification ──────────────────────────────────────────
         document_type: {
             type:     String,
             required: true,
-            enum:     ['Question Paper', 'Marking Scheme'],
+            enum:     ['Question Paper'],
             default:  'Question Paper',
         },
 
@@ -29,7 +20,8 @@ const questionSchema = new mongoose.Schema(
         curriculum: {
             type:     String,
             required: true,
-            enum:     ['IGCSE', 'IB', 'A-Level', 'O-Level'],
+            enum:     ['IB'],
+            default:  'IB',
         },
         program: {
             type:     String,
@@ -62,7 +54,6 @@ const questionSchema = new mongoose.Schema(
             type:     String,
             required: true,
             trim:     true,
-            index:    true,
         },
 
         // ── QP fields ────────────────────────────────────────────────────────
@@ -82,38 +73,30 @@ const questionSchema = new mongoose.Schema(
             type:     String,
             required: false,
         },
-        diagram_urls: {
-            type:    [String],
-            default: [],
-        },
+  diagram_urls: {
+    type: [String],
+    default: [],
+    validate: {
+      validator: function(urls) {
+        // Ensure it's an array of strings
+        if (!Array.isArray(urls)) return false;
+        
+        // Sanitize to be sure
+        const sanitized = sanitizeDiagramUrls(urls);
+        
+        // Check if every item is a valid string URL
+        return sanitized.every(url => typeof url === 'string' && url.trim() !== '' && isValidUrl(url));
+      },
+      message: 'diagram_urls must be a flat array of valid URL strings'
+    },
+    // Pre-save sanitization
+    set: function(urls) {
+      return sanitizeDiagramUrls(urls);
+    }
+  },
         needs_review: {
             type:    Boolean,
             default: false,
-        },
-
-        // ── MS Training Schema fields ─────────────────────────────────────────
-        // question_id  — the question number/label (mirrors question_latex for MS)
-        question_id: {
-            type:     String,
-            required: false,
-            default:  '',
-        },
-        // final_answer — concise final answer (plain text or LaTeX)
-        final_answer: {
-            type:     String,
-            required: false,
-            default:  '',
-        },
-        // total_marks  — integer sum of all mark codes for this sub-part
-        total_marks: {
-            type:     Number,
-            required: false,
-            default:  0,
-        },
-        // method_steps — ordered list of { type, description } mark-point objects
-        method_steps: {
-            type:    [methodStepSchema],
-            default: [],
         },
     },
     {
@@ -121,12 +104,8 @@ const questionSchema = new mongoose.Schema(
     }
 );
 
-// ---------------------------------------------------------------------------
-// Indexes
-// ---------------------------------------------------------------------------
-
 // Compound index for fast SaaS filtering
-questionSchema.index({
+ibQuestionSchema.index({
     curriculum:          1,
     program:             1,
     subjectCode:         1,
@@ -138,6 +117,6 @@ questionSchema.index({
 });
 
 // Fast lookup: find the MS that belongs to a given QP (or vice-versa)
-questionSchema.index({ paper_reference_key: 1, document_type: 1 });
+ibQuestionSchema.index({ paper_reference_key: 1 });
 
-module.exports = mongoose.model('Question', questionSchema);
+module.exports = mongoose.model('IBQuestion', ibQuestionSchema);

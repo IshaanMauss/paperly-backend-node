@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../paperly-engine-python"
+		},
+		{
+			"path": "../paperly-frontend-internal"
+		}
+	],
+	"settings": {}
+}

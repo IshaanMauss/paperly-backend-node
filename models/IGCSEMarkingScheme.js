@@ -1,35 +1,26 @@
-// File: models/Question.js
+// File: models/IGCSEMarkingScheme.js
 const mongoose = require('mongoose');
+const methodStepSchema = require('./subschemas/MethodStepSchema');
 
 // ---------------------------------------------------------------------------
-// Sub-schema: a single mark-point in a Marking Scheme entry
+// IGCSE Marking Scheme schema
 // ---------------------------------------------------------------------------
-const methodStepSchema = new mongoose.Schema(
-    {
-        type:        { type: String, default: '' }, // M1, A1, B1, ft, oe, dep, allow, accept …
-        description: { type: String, default: '' }, // What earns this mark (LaTeX if math)
-    },
-    { _id: false }
-);
-
-// ---------------------------------------------------------------------------
-// Main Question / MS-Entry schema
-// ---------------------------------------------------------------------------
-const questionSchema = new mongoose.Schema(
+const igcseMarkingSchemeSchema = new mongoose.Schema(
     {
         // ── Document classification ──────────────────────────────────────────
         document_type: {
             type:     String,
             required: true,
-            enum:     ['Question Paper', 'Marking Scheme'],
-            default:  'Question Paper',
+            enum:     ['Marking Scheme'],
+            default:  'Marking Scheme',
         },
 
         // ── Paper metadata ───────────────────────────────────────────────────
         curriculum: {
             type:     String,
             required: true,
-            enum:     ['IGCSE', 'IB', 'A-Level', 'O-Level'],
+            enum:     ['IGCSE'],
+            default:  'IGCSE',
         },
         program: {
             type:     String,
@@ -62,21 +53,31 @@ const questionSchema = new mongoose.Schema(
             type:     String,
             required: true,
             trim:     true,
-            index:    true,
         },
 
-        // ── QP fields ────────────────────────────────────────────────────────
-        isTemplatizable: {
-            type:    Boolean,
-            default: false,
-        },
-        variables: {
-            type:    [String],
-            default: [],
-        },
+        // ── MS fields ────────────────────────────────────────────────────────
         question_latex: {
             type:     String,
             required: true,
+        },
+        question_id: {
+            type:     String,
+            required: false,
+            default:  '',
+        },
+        final_answer: {
+            type:     String,
+            required: false,
+            default:  '',
+        },
+        total_marks: {
+            type:     Number,
+            required: false,
+            default:  0,
+        },
+        method_steps: {
+            type:    [methodStepSchema],
+            default: [],
         },
         official_marking_scheme_latex: {
             type:     String,
@@ -90,43 +91,14 @@ const questionSchema = new mongoose.Schema(
             type:    Boolean,
             default: false,
         },
-
-        // ── MS Training Schema fields ─────────────────────────────────────────
-        // question_id  — the question number/label (mirrors question_latex for MS)
-        question_id: {
-            type:     String,
-            required: false,
-            default:  '',
-        },
-        // final_answer — concise final answer (plain text or LaTeX)
-        final_answer: {
-            type:     String,
-            required: false,
-            default:  '',
-        },
-        // total_marks  — integer sum of all mark codes for this sub-part
-        total_marks: {
-            type:     Number,
-            required: false,
-            default:  0,
-        },
-        // method_steps — ordered list of { type, description } mark-point objects
-        method_steps: {
-            type:    [methodStepSchema],
-            default: [],
-        },
     },
     {
         timestamps: true,
     }
 );
 
-// ---------------------------------------------------------------------------
-// Indexes
-// ---------------------------------------------------------------------------
-
 // Compound index for fast SaaS filtering
-questionSchema.index({
+igcseMarkingSchemeSchema.index({
     curriculum:          1,
     program:             1,
     subjectCode:         1,
@@ -137,7 +109,6 @@ questionSchema.index({
     paper_reference_key: 1,
 });
 
-// Fast lookup: find the MS that belongs to a given QP (or vice-versa)
-questionSchema.index({ paper_reference_key: 1, document_type: 1 });
 
-module.exports = mongoose.model('Question', questionSchema);
+
+module.exports = mongoose.model('IGCSEMarkingScheme', igcseMarkingSchemeSchema);
