@@ -1,7 +1,10 @@
 // File: routes/internalRoutes.js
 const express = require('express');
 const router = express.Router();
-const mongoose = require('mongoose'); // Added to check DB status dynamically
+const mongoose = require('mongoose');
+
+// ⚠️ IMPORTANT: Apne Question model ka exact path yahan daal dena
+const Question = require('../models/Question'); 
 const { clearExtractionCache } = require('../services/pythonEngine');
 
 const { 
@@ -30,6 +33,50 @@ router.get('/counts', getQuestionCounts);
 // POST /api/v1/internal/papers/manual-pair
 router.post('/papers/manual-pair', manualPairDocuments);
 
+
+// ── DATA VERIFICATION ──────────────────────────────────────────────────────
+
+// GET /api/v1/internal/verify-pairing (To check QP and MS pairing visually)
+router.get('/verify-pairing', async (req, res) => {
+    try {
+        const { board, year, paper_number } = req.query;
+
+        // Query filter banate hain
+        let query = {};
+        if (board) query.board = board;
+        if (year) query.year = year;
+        if (paper_number) query.paper_number = paper_number;
+
+        // Sirf 5 questions uthate hain test karne ke liye taaki load na pade
+        const questions = await Question.find(query).limit(5);
+
+        if (!questions || questions.length === 0) {
+            return res.status(404).json({ success: false, message: "No questions found matching this filter." });
+        }
+
+        // Data ko clean format mein map karte hain taaki padhne mein aasani ho
+        const verificationData = questions.map(q => ({
+            question_id: q.question_number || q._id,
+            board_details: `${q.board} - ${q.year} - Paper ${q.paper_number}`,
+            QUESTION_PART: q.question_text || "Text missing",
+            QUESTION_IMAGES: q.diagram_urls || [],
+            PAIRED_ANSWER: q.answer_text || q.marking_scheme_text || "Answer missing", // Adjust DB field name if needed
+            MARKS: q.marks || "N/A"
+        }));
+
+        res.status(200).json({
+            success: true,
+            total_checked: verificationData.length,
+            data: verificationData
+        });
+
+    } catch (error) {
+        console.error("❌ Verification Error:", error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+
 // ── CACHE MANAGEMENT ───────────────────────────────────────────────────────
 
 router.post('/cache/clear', async (req, res) => {
@@ -37,7 +84,7 @@ router.post('/cache/clear', async (req, res) => {
         // Clear Node.js caches
         const nodeCacheResult = clearCaches();
         
-        // Clear Python engine caches (Added await assuming it's an async HTTP call)
+        // Clear Python engine caches
         const pythonCacheResult = await clearExtractionCache(); 
         
         return res.status(200).json({
@@ -55,6 +102,7 @@ router.post('/cache/clear', async (req, res) => {
         });
     }
 });
+
 
 // ── SYSTEM STATUS & HEALTH ─────────────────────────────────────────────────
 
