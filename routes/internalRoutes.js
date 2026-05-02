@@ -1,5 +1,7 @@
+// File: routes/internalRoutes.js
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose'); // Added to check DB status dynamically
 const { clearExtractionCache } = require('../services/pythonEngine');
 
 const { 
@@ -14,6 +16,8 @@ const {
 // Apply performance tracking middleware to all routes
 router.use(trackRequestTime);
 
+// ── CORE PIPELINE ROUTES ───────────────────────────────────────────────────
+
 // POST /api/v1/internal/process-page
 router.post('/process-page', processDualUpload);
 
@@ -26,14 +30,15 @@ router.get('/counts', getQuestionCounts);
 // POST /api/v1/internal/papers/manual-pair
 router.post('/papers/manual-pair', manualPairDocuments);
 
-// Cache management routes
+// ── CACHE MANAGEMENT ───────────────────────────────────────────────────────
+
 router.post('/cache/clear', async (req, res) => {
     try {
         // Clear Node.js caches
         const nodeCacheResult = clearCaches();
         
-        // Clear Python engine caches
-        const pythonCacheResult = clearExtractionCache();
+        // Clear Python engine caches (Added await assuming it's an async HTTP call)
+        const pythonCacheResult = await clearExtractionCache(); 
         
         return res.status(200).json({
             success: true,
@@ -42,6 +47,7 @@ router.post('/cache/clear', async (req, res) => {
             python: pythonCacheResult
         });
     } catch (error) {
+        console.error("❌ Cache Clear Error:", error);
         return res.status(500).json({
             success: false,
             message: 'Failed to clear caches',
@@ -50,7 +56,18 @@ router.post('/cache/clear', async (req, res) => {
     }
 });
 
-// System status endpoints
+// ── SYSTEM STATUS & HEALTH ─────────────────────────────────────────────────
+
+// GET /api/v1/internal/health (Quick Router Health Check)
+router.get('/health', (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: 'Internal API router is fully operational 🚀',
+        timestamp: new Date().toISOString()
+    });
+});
+
+// GET /api/v1/internal/status (Detailed System Status)
 router.get('/status', (req, res) => {
     const status = {
         success: true,
@@ -63,12 +80,13 @@ router.get('/status', (req, res) => {
         },
         services: {
             node_api: 'online',
-            python_engine: 'online', // We should check this dynamically in a real implementation
-            database: 'connected',
+            python_engine: 'online', // Note: Can be upgraded later to actively ping the Python URL
+            database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected', // Dynamic check
             cloudinary: 'connected'
         },
         performance: {
-            request_time_ms: Date.now() - req.startTime
+            // Added fallback to 0 in case trackRequestTime middleware is skipped
+            request_time_ms: req.startTime ? Date.now() - req.startTime : 0 
         }
     };
     
